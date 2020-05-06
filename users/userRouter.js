@@ -1,21 +1,50 @@
 const express = require("express");
 const userData = require("./userDb");
+const postData = require("../posts/postDb");
 
 const router = express.Router();
 
 router.post("/", (req, res) => {
-  // userData.insert(req.body)
-  //   .then(post => {
-  //     if (req.body){
-  //       res.status(200).json(post)
-  //     }else{
-  //       res.status(404).json({ errorMessage: 'Please include'})
-  //     }
-  //   }).catch({ errorMessage: 'There was a problem uploading your post'})
+  userData
+    .insert(req.body)
+    .then((user) => {
+      if (req.body.name) {
+        res.status(200).json(user);
+      } else {
+        res.status(404).json({ errorMessage: "Please include a name" });
+      }
+    })
+    .catch({ errorMessage: "There was a problem uploading your post" });
 });
 
 router.post("/:id/posts", (req, res) => {
-  // do your magic!
+  userData
+    .getById(req.params.id)
+    .then((user) => {
+      if (user != undefined) {
+        postData
+          .insert(req.body)
+          .then((post) => {
+            if (req.body.text) {
+              res.status(200).json(post);
+            } else {
+              res.status(404).json({ errorMessage: "Please include text" });
+            }
+          })
+          .catch((err) => {
+            res.status(500).json({ error: "There was an issue posting" });
+          });
+      } else {
+        res.status(404).json({
+          message: "couldnt find a user with that ID",
+        });
+      }
+    })
+    .catch((err) => {
+      res
+        .status(500)
+        .json({ error: "The user information could not be retrieved" });
+    });
 });
 
 router.get("/", (req, res) => {
@@ -80,11 +109,47 @@ router.get("/:id/posts", (req, res) => {
 });
 
 router.delete("/:id", (req, res) => {
-  // do your magic!
+  userData
+    .getById(req.params.id)
+    .then((user) => {
+      userData
+        .remove(req.params.id)
+        .then((delUser) => {
+          res.status(200).json(delUser);
+        })
+        .catch((err) => {
+          res.status(500).json({
+            error: "issue deleting that user",
+          });
+        });
+    })
+    .catch((err) => {
+      res
+        .status(500)
+        .json({ error: "The user information could not be retrieved" });
+    });
 });
 
 router.put("/:id", (req, res) => {
-  // do your magic!
+  userData
+    .getById(req.params.id)
+    .then((user) => {
+      userData
+        .update(req.params.id, req.body)
+        .then((updUser) => {
+          res.status(200).json(updUser);
+        })
+        .catch((err) => {
+          res
+            .status(500)
+            .json({ error: "The user information could not be retrieved" });
+        });
+    })
+    .catch((err) => {
+      res
+        .status(500)
+        .json({ error: "The user information could not be retrieved" });
+    });
 });
 
 //custom middleware
