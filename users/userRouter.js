@@ -4,46 +4,23 @@ const postData = require("../posts/postDb");
 
 const router = express.Router();
 
-router.post("/", (req, res) => {
+router.post("/", validateUser, (req, res) => {
   userData
     .insert(req.body)
     .then((user) => {
-      if (req.body.name) {
-        res.status(200).json(user);
-      } else {
-        res.status(404).json({ errorMessage: "Please include a name" });
-      }
+      res.status(200).json(user);
     })
     .catch({ errorMessage: "There was a problem uploading your post" });
 });
 
-router.post("/:id/posts", (req, res) => {
-  userData
-    .getById(req.params.id)
-    .then((user) => {
-      if (user != undefined) {
-        postData
-          .insert(req.body)
-          .then((post) => {
-            if (req.body.text) {
-              res.status(200).json(post);
-            } else {
-              res.status(404).json({ errorMessage: "Please include text" });
-            }
-          })
-          .catch((err) => {
-            res.status(500).json({ error: "There was an issue posting" });
-          });
-      } else {
-        res.status(404).json({
-          message: "couldnt find a user with that ID",
-        });
-      }
+router.post("/:id/posts", validateUserId, validatePost, (req, res) => {
+  postData
+    .insert(req.body)
+    .then((post) => {
+      res.status(200).json(post);
     })
     .catch((err) => {
-      res
-        .status(500)
-        .json({ error: "The user information could not be retrieved" });
+      res.status(500).json({ error: "There was an issue posting" });
     });
 });
 
@@ -60,18 +37,11 @@ router.get("/", (req, res) => {
     });
 });
 
-router.get("/:id", (req, res) => {
+router.get("/:id", validateUserId, (req, res) => {
   userData
     .getById(req.params.id)
     .then((user) => {
-      console.log(user);
-      if (user != undefined) {
-        res.status(200).json(user);
-      } else {
-        res.status(404).json({
-          message: "couldnt find the post with that id",
-        });
-      }
+      res.status(200).json(user);
     })
     .catch((err) => {
       res
@@ -80,70 +50,37 @@ router.get("/:id", (req, res) => {
     });
 });
 
-router.get("/:id/posts", (req, res) => {
+router.get("/:id/posts", validateUserId, (req, res) => {
   userData
-    .getById(req.params.id)
-    .then((user) => {
-      if (user != undefined) {
-        userData
-          .getUserPosts(req.params.id)
-          .then((userPosts) => {
-            res.status(200).json(userPosts);
-          })
-          .catch((err) => {
-            res.status(500).json({
-              error: "There was an error retrieving that users posts",
-            });
-          });
-      } else {
-        res.status(404).json({
-          message: "couldnt find a user with that ID",
-        });
-      }
+    .getUserPosts(req.params.id)
+    .then((userPosts) => {
+      res.status(200).json(userPosts);
     })
     .catch((err) => {
-      res
-        .status(500)
-        .json({ error: "The user information could not be retrieved" });
+      res.status(500).json({
+        error: "There was an error retrieving that users posts",
+      });
     });
 });
 
-router.delete("/:id", (req, res) => {
+router.delete("/:id", validateUserId, (req, res) => {
   userData
-    .getById(req.params.id)
-    .then((user) => {
-      userData
-        .remove(req.params.id)
-        .then((delUser) => {
-          res.status(200).json(delUser);
-        })
-        .catch((err) => {
-          res.status(500).json({
-            error: "issue deleting that user",
-          });
-        });
+    .remove(req.params.id)
+    .then((delUser) => {
+      res.status(200).json(delUser);
     })
     .catch((err) => {
-      res
-        .status(500)
-        .json({ error: "The user information could not be retrieved" });
+      res.status(500).json({
+        error: "issue deleting that user",
+      });
     });
 });
 
-router.put("/:id", (req, res) => {
+router.put("/:id", validateUserId, validateUser, (req, res) => {
   userData
-    .getById(req.params.id)
-    .then((user) => {
-      userData
-        .update(req.params.id, req.body)
-        .then((updUser) => {
-          res.status(200).json(updUser);
-        })
-        .catch((err) => {
-          res
-            .status(500)
-            .json({ error: "The user information could not be retrieved" });
-        });
+    .update(req.params.id, req.body)
+    .then((updUser) => {
+      res.status(200).json(updUser);
     })
     .catch((err) => {
       res
@@ -155,15 +92,47 @@ router.put("/:id", (req, res) => {
 //custom middleware
 
 function validateUserId(req, res, next) {
-  // do your magic!
+  userData
+    .getById(req.params.id)
+    .then((user) => {
+      if (user != undefined) {
+        req.user = req.params.id;
+        next();
+      } else {
+        res.status(400).json({
+          errorMessage: "The user with this ID does not exist.",
+        });
+      }
+    })
+    .catch((err) => {
+      res.status(500).json({ error: "Issue retrieving that user" });
+    });
 }
 
 function validateUser(req, res, next) {
-  // do your magic!
+  if (req.body) {
+    if (req.body.name) {
+      next();
+    } else {
+      res.status(400).json({ message: "missing required name field" });
+    }
+  } else {
+    res.status(400).json({ message: "missing user data" });
+  }
 }
 
 function validatePost(req, res, next) {
-  // do your magic!
+  if (req.body) {
+    if (req.body.text) {
+      next();
+    } else {
+      res.status(400).json({ message: "missing required text field" });
+    }
+  } else {
+    res.status(400).json({
+      message: "missing post data",
+    });
+  }
 }
 
 module.exports = router;
